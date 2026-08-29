@@ -8,7 +8,8 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { WebBadge } from '@/components/web-badge';
 import { BottomTabInset, MaxContentWidth, Spacing } from '@/constants/theme';
-import { supabase } from '../lib/supabase';
+import { supabase } from '../../lib/supabase';
+import { Link } from 'expo-router';
 function getDevMenuHint() {
   if (Platform.OS === 'web') {
     return <ThemedText type="small">use browser devtools</ThemedText>;
@@ -43,7 +44,7 @@ export default function HomeScreen() {
           get started
         </ThemedText>
 
-        <ThemedView type="backgroundElement" style={styles.stepContainer}>
+                <ThemedView type="backgroundElement" style={styles.stepContainer}>
           <HintRow
             title="Try editing"
             hint={<ThemedText type="code">src/app/index.tsx</ThemedText>}
@@ -54,6 +55,13 @@ export default function HomeScreen() {
             hint={<ThemedText type="code">npm run reset-project</ThemedText>}
           />
         </ThemedView>
+
+        <Link href="/signup" style={{ fontSize: 20, color: 'blue', padding: 20, backgroundColor: 'yellow' }}>
+  SIGN UP HERE
+        </Link>
+<       Link href="/login" style={{ fontSize: 20, color: 'blue', padding: 20, backgroundColor: 'lightgreen' }}>
+  LOG IN HERE
+        </Link>
 
         {Platform.OS === 'web' && <WebBadge />}
       </SafeAreaView>
