@@ -1,15 +1,18 @@
 import * as Device from 'expo-device';
-import { Platform, StyleSheet } from 'react-native';
+import { Platform, StyleSheet, View, Text, Pressable } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-
+import { useRouter } from 'expo-router';
 import { AnimatedIcon } from '@/components/animated-icon';
 import { HintRow } from '@/components/hint-row';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { WebBadge } from '@/components/web-badge';
 import { BottomTabInset, MaxContentWidth, Spacing } from '@/constants/theme';
-import { supabase } from '../../lib/supabase';
 import { Link } from 'expo-router';
+import { useState, useCallback } from 'react';
+import { FlatList } from 'react-native';
+import { supabase } from '../../lib/supabase';
+import { useFocusEffect } from 'expo-router';
 function getDevMenuHint() {
   if (Platform.OS === 'web') {
     return <ThemedText type="small">use browser devtools</ThemedText>;
@@ -30,6 +33,28 @@ function getDevMenuHint() {
 }
 
 export default function HomeScreen() {
+const [projects, setProjects] = useState<any[]>([]);
+const router = useRouter();
+
+useFocusEffect(
+  useCallback(() => {
+    async function loadProjects() {
+      const { data: userData } = await supabase.auth.getUser();
+      if (!userData.user) return;
+
+      const { data, error } = await supabase
+        .from('projects')
+        .select('*')
+        .eq('scout_id', userData.user.id)
+        .order('created_at', { ascending: false });
+
+      if (!error && data) {
+        setProjects(data);
+      }
+    }
+    loadProjects();
+  }, [])
+);
   return (
     <ThemedView style={styles.container}>
       <SafeAreaView style={styles.safeArea}>
@@ -59,9 +84,29 @@ export default function HomeScreen() {
         <Link href="/signup" style={{ fontSize: 20, color: 'blue', padding: 20, backgroundColor: 'yellow' }}>
   SIGN UP HERE
         </Link>
-<       Link href="/login" style={{ fontSize: 20, color: 'blue', padding: 20, backgroundColor: 'lightgreen' }}>
+        <Link href="/login" style={{ fontSize: 20, color: 'blue', padding: 20, backgroundColor: 'lightgreen' }}>
   LOG IN HERE
         </Link>
+        <Link href="/new-project" style={{ fontSize: 18, color: 'blue', padding: 16, backgroundColor: 'lightblue' }}>
+  + New Project
+        </Link>
+
+        <View style={{ width: '100%', padding: 16 }}>
+          <Text style={{ fontWeight: 'bold', marginBottom: 8, color: '#333' }}>My Projects</Text>
+          {projects.length === 0 ? (
+            <Text style={{ color: '#333' }}>No projects yet.</Text>
+          ) : (
+            projects.map((p) => (
+              <Pressable
+                key={p.id}
+                onPress={() => router.push('/project/' + p.id)}
+                style={{ paddingVertical: 8, borderBottomWidth: 1, borderColor: '#eee', width: '100%' }}>
+                <Text style={{ fontWeight: '600' }}>{p.title}</Text>
+                <Text>{p.status}</Text>
+              </Pressable>
+            ))
+          )}
+        </View>
 
         {Platform.OS === 'web' && <WebBadge />}
       </SafeAreaView>

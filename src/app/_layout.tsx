@@ -16,6 +16,8 @@ export default function RootLayout() {
         <Stack.Screen name="(tabs)" />
         <Stack.Screen name="signup" options={{ headerShown: true, title: 'Sign Up' }} />
         <Stack.Screen name="login" options={{ headerShown: true, title: 'Log In' }} />
+        <Stack.Screen name="new-project" options={{ headerShown: true, title: 'New Project' }} />
+        <Stack.Screen name="project/[id]" options={{ headerShown: true, title: 'Project' }} />
       </Stack>
     </ThemeProvider>
   );
