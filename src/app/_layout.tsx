@@ -18,6 +18,7 @@ export default function RootLayout() {
         <Stack.Screen name="login" options={{ headerShown: true, title: 'Log In' }} />
         <Stack.Screen name="new-project" options={{ headerShown: true, title: 'New Project' }} />
         <Stack.Screen name="project/[id]" options={{ headerShown: true, title: 'Project' }} />
+        <Stack.Screen name="approvals" options={{ headerShown: true, title: 'Approvals' }} />
       </Stack>
     </ThemeProvider>
   );

@@ -90,6 +90,9 @@ useFocusEffect(
         <Link href="/new-project" style={{ fontSize: 18, color: 'blue', padding: 16, backgroundColor: 'lightblue' }}>
   + New Project
         </Link>
+          <Link href="/approvals" style={{ fontSize: 18, color: 'blue', padding: 16, backgroundColor: 'orange' }}>
+    PENDING APPROVALS
+        </Link>
 
         <View style={{ width: '100%', padding: 16 }}>
           <Text style={{ fontWeight: 'bold', marginBottom: 8, color: '#333' }}>My Projects</Text>

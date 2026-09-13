@@ -50,9 +50,17 @@ export default function ProjectDetailScreen() {
       .update({ status: nextStatus })
       .eq('id', project.id);
 
-    if (!error) {
-      setProject({ ...project, status: nextStatus });
+    if (error) return;
+
+    if (nextStatus === 'scoutmaster_review') {
+      await supabase.from('approvals').insert({
+        project_id: project.id,
+        role_required: 'scoutmaster',
+        status: 'pending',
+      });
     }
+
+    setProject({ ...project, status: nextStatus });
   }
 
   if (loading) {
@@ -97,10 +105,10 @@ export default function ProjectDetailScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, padding: 24, gap: 12 },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  title: { fontSize: 22, fontWeight: 'bold' },
+  title: { fontSize: 22, fontWeight: 'bold', color: '#333' },
   description: { fontSize: 14, color: '#555' },
-  label: { fontSize: 14 },
+  label: { fontSize: 14, color: '#333' },
   statusBox: { backgroundColor: '#f0f0f0', borderRadius: 8, padding: 12, marginVertical: 12 },
   statusLabel: { fontSize: 12, color: '#777' },
-  statusValue: { fontSize: 18, fontWeight: '600', textTransform: 'uppercase' },
+  statusValue: { fontSize: 18, fontWeight: '600', textTransform: 'uppercase', color: '#333' },
 });
