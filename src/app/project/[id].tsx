@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { View, Text, Button, StyleSheet, ActivityIndicator } from 'react-native';
+import { View, Text, Button, TextInput, StyleSheet, ActivityIndicator } from 'react-native';
 import { useLocalSearchParams, useFocusEffect } from 'expo-router';
 import { supabase } from '../../lib/supabase';
 
@@ -20,22 +20,33 @@ export default function ProjectDetailScreen() {
   const [project, setProject] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
+  const [hoursList, setHoursList] = useState<any[]>([]);
+  const [volunteerName, setVolunteerName] = useState('');
+  const [hoursAmount, setHoursAmount] = useState('');
+  const [hoursDescription, setHoursDescription] = useState('');
+
   useFocusEffect(
     useCallback(() => {
       async function loadProject() {
         setLoading(true);
-        const { data, error } = await supabase
-          .from('projects')
-          .select('*')
-          .eq('id', id)
-          .single();
-
+        const { data, error } = await supabase.from('projects').select('*').eq('id', id).single();
         if (!error && data) {
           setProject(data);
         }
         setLoading(false);
       }
+      async function loadHours() {
+        const { data, error } = await supabase
+          .from('hours_log')
+          .select('*')
+          .eq('project_id', id)
+          .order('date', { ascending: false });
+        if (!error && data) {
+          setHoursList(data);
+        }
+      }
       loadProject();
+      loadHours();
     }, [id])
   );
 
@@ -45,11 +56,7 @@ export default function ProjectDetailScreen() {
     const nextStatus = STATUS_ORDER[currentIndex + 1];
     if (!nextStatus) return;
 
-    const { error } = await supabase
-      .from('projects')
-      .update({ status: nextStatus })
-      .eq('id', project.id);
-
+    const { error } = await supabase.from('projects').update({ status: nextStatus }).eq('id', project.id);
     if (error) return;
 
     if (nextStatus === 'scoutmaster_review') {
@@ -61,6 +68,31 @@ export default function ProjectDetailScreen() {
     }
 
     setProject({ ...project, status: nextStatus });
+  }
+
+  async function handleAddHours() {
+    if (!volunteerName || !hoursAmount) return;
+
+    const { error } = await supabase.from('hours_log').insert({
+      project_id: id,
+      volunteer_name: volunteerName,
+      date: new Date().toISOString().split('T')[0],
+      hours: parseFloat(hoursAmount),
+      description: hoursDescription,
+    });
+
+    if (!error) {
+      setVolunteerName('');
+      setHoursAmount('');
+      setHoursDescription('');
+
+      const { data } = await supabase
+        .from('hours_log')
+        .select('*')
+        .eq('project_id', id)
+        .order('date', { ascending: false });
+      if (data) setHoursList(data);
+    }
   }
 
   if (loading) {
@@ -81,6 +113,7 @@ export default function ProjectDetailScreen() {
 
   const currentIndex = STATUS_ORDER.indexOf(project.status);
   const isFinal = currentIndex === STATUS_ORDER.length - 1;
+  const totalHours = hoursList.reduce((sum, h) => sum + Number(h.hours), 0);
 
   return (
     <View style={styles.container}>
@@ -98,6 +131,40 @@ export default function ProjectDetailScreen() {
         onPress={handleAdvance}
         disabled={isFinal}
       />
+
+      <View style={styles.hoursSection}>
+        <Text style={styles.sectionTitle}>Hours Logged: {totalHours}</Text>
+
+        <TextInput
+          style={styles.input}
+          placeholder="Volunteer name"
+          value={volunteerName}
+          onChangeText={setVolunteerName}
+        />
+        <TextInput
+          style={styles.input}
+          placeholder="Hours (e.g. 2.5)"
+          value={hoursAmount}
+          onChangeText={setHoursAmount}
+          keyboardType="numeric"
+        />
+        <TextInput
+          style={styles.input}
+          placeholder="What did they do?"
+          value={hoursDescription}
+          onChangeText={setHoursDescription}
+        />
+        <Button title="Add Hours" onPress={handleAddHours} />
+
+        {hoursList.map((h) => (
+          <View key={h.id} style={styles.hoursRow}>
+            <Text style={styles.hoursRowText}>
+              {h.volunteer_name} — {h.hours} hrs ({h.date})
+            </Text>
+            <Text style={styles.hoursRowDesc}>{h.description}</Text>
+          </View>
+        ))}
+      </View>
     </View>
   );
 }
@@ -111,4 +178,10 @@ const styles = StyleSheet.create({
   statusBox: { backgroundColor: '#f0f0f0', borderRadius: 8, padding: 12, marginVertical: 12 },
   statusLabel: { fontSize: 12, color: '#777' },
   statusValue: { fontSize: 18, fontWeight: '600', textTransform: 'uppercase', color: '#333' },
+  hoursSection: { marginTop: 24, gap: 8 },
+  sectionTitle: { fontSize: 18, fontWeight: 'bold', color: '#333', marginBottom: 8 },
+  input: { borderWidth: 1, borderColor: '#ccc', borderRadius: 8, padding: 10 },
+  hoursRow: { borderBottomWidth: 1, borderColor: '#eee', paddingVertical: 8 },
+  hoursRowText: { fontSize: 14, fontWeight: '600', color: '#333' },
+  hoursRowDesc: { fontSize: 13, color: '#666' },
 });
