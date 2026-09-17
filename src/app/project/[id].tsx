@@ -1,6 +1,7 @@
 import { useState, useCallback } from 'react';
-import { View, Text, Button, TextInput, StyleSheet, ActivityIndicator } from 'react-native';
+import { View, Text, Button, TextInput, StyleSheet, ActivityIndicator, Pressable, Linking } from 'react-native';
 import { useLocalSearchParams, useFocusEffect } from 'expo-router';
+import * as DocumentPicker from 'expo-document-picker';
 import { supabase } from '../../lib/supabase';
 
 const STATUS_ORDER = [
@@ -25,6 +26,9 @@ export default function ProjectDetailScreen() {
   const [hoursAmount, setHoursAmount] = useState('');
   const [hoursDescription, setHoursDescription] = useState('');
 
+  const [documents, setDocuments] = useState<any[]>([]);
+  const [uploading, setUploading] = useState(false);
+
   useFocusEffect(
     useCallback(() => {
       async function loadProject() {
@@ -45,8 +49,19 @@ export default function ProjectDetailScreen() {
           setHoursList(data);
         }
       }
+      async function loadDocuments() {
+        const { data, error } = await supabase
+          .from('documents')
+          .select('*')
+          .eq('project_id', id)
+          .order('uploaded_at', { ascending: false });
+        if (!error && data) {
+          setDocuments(data);
+        }
+      }
       loadProject();
       loadHours();
+      loadDocuments();
     }, [id])
   );
 
@@ -103,6 +118,56 @@ export default function ProjectDetailScreen() {
     }
   }
 
+  async function handleUploadDocument() {
+    const result = await DocumentPicker.getDocumentAsync({ type: '*/*' });
+
+    if (result.canceled || !result.assets || result.assets.length === 0) return;
+
+    const file = result.assets[0];
+    setUploading(true);
+
+    try {
+      const response = await fetch(file.uri);
+      const blob = await response.blob();
+
+      const filePath = `${id}/${Date.now()}_${file.name}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('documents')
+        .upload(filePath, blob, { contentType: file.mimeType || 'application/octet-stream' });
+
+      if (uploadError) {
+        console.log('Upload error:', uploadError);
+        setUploading(false);
+        return;
+      }
+
+      const { data: publicUrlData } = supabase.storage.from('documents').getPublicUrl(filePath);
+
+      const { error: insertError } = await supabase.from('documents').insert({
+        project_id: id,
+        type: 'proposal',
+        file_url: publicUrlData.publicUrl,
+        version: 1,
+      });
+
+      if (insertError) {
+        console.log('Insert error:', insertError);
+      }
+
+      const { data } = await supabase
+        .from('documents')
+        .select('*')
+        .eq('project_id', id)
+        .order('uploaded_at', { ascending: false });
+      if (data) setDocuments(data);
+    } catch (e) {
+      console.log('Upload exception:', e);
+    }
+
+    setUploading(false);
+  }
+
   if (loading) {
     return (
       <View style={styles.center}>
@@ -140,7 +205,7 @@ export default function ProjectDetailScreen() {
         disabled={isFinal}
       />
 
-      <View style={styles.hoursSection}>
+      <View style={styles.section}>
         <Text style={styles.sectionTitle}>Hours Logged: {totalHours}</Text>
 
         <TextInput
@@ -165,12 +230,29 @@ export default function ProjectDetailScreen() {
         <Button title="Add Hours" onPress={handleAddHours} />
 
         {hoursList.map((h) => (
-          <View key={h.id} style={styles.hoursRow}>
-            <Text style={styles.hoursRowText}>
+          <View key={h.id} style={styles.rowItem}>
+            <Text style={styles.rowText}>
               {h.volunteer_name} — {h.hours} hrs ({h.date})
             </Text>
-            <Text style={styles.hoursRowDesc}>{h.description}</Text>
+            <Text style={styles.rowDesc}>{h.description}</Text>
           </View>
+        ))}
+      </View>
+
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Documents</Text>
+
+        <Button
+          title={uploading ? 'Uploading...' : 'Upload Document'}
+          onPress={handleUploadDocument}
+          disabled={uploading}
+        />
+
+        {documents.map((d) => (
+          <Pressable key={d.id} onPress={() => Linking.openURL(d.file_url)} style={styles.rowItem}>
+            <Text style={styles.rowText}>{d.type} (v{d.version})</Text>
+            <Text style={styles.rowLink}>Tap to view</Text>
+          </Pressable>
         ))}
       </View>
     </View>
@@ -186,10 +268,11 @@ const styles = StyleSheet.create({
   statusBox: { backgroundColor: '#f0f0f0', borderRadius: 8, padding: 12, marginVertical: 12 },
   statusLabel: { fontSize: 12, color: '#777' },
   statusValue: { fontSize: 18, fontWeight: '600', textTransform: 'uppercase', color: '#333' },
-  hoursSection: { marginTop: 24, gap: 8 },
+  section: { marginTop: 24, gap: 8 },
   sectionTitle: { fontSize: 18, fontWeight: 'bold', color: '#333', marginBottom: 8 },
   input: { borderWidth: 1, borderColor: '#ccc', borderRadius: 8, padding: 10 },
-  hoursRow: { borderBottomWidth: 1, borderColor: '#eee', paddingVertical: 8 },
-  hoursRowText: { fontSize: 14, fontWeight: '600', color: '#333' },
-  hoursRowDesc: { fontSize: 13, color: '#666' },
+  rowItem: { borderBottomWidth: 1, borderColor: '#eee', paddingVertical: 8 },
+  rowText: { fontSize: 14, fontWeight: '600', color: '#333' },
+  rowDesc: { fontSize: 13, color: '#666' },
+  rowLink: { fontSize: 13, color: '#2563eb' },
 });
