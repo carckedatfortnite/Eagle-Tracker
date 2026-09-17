@@ -25,18 +25,30 @@ export default function ApprovalsScreen() {
     }, [])
   );
 
-  async function handleDecision(approvalId: string, projectId: string, decision: 'approved' | 'rejected') {
-    await supabase
-      .from('approvals')
-      .update({ status: decision, decided_at: new Date().toISOString() })
-      .eq('id', approvalId);
+async function handleDecision(
+  approvalId: string,
+  projectId: string,
+  roleRequired: string,
+  decision: 'approved' | 'rejected'
+) {
+  await supabase
+    .from('approvals')
+    .update({ status: decision, decided_at: new Date().toISOString() })
+    .eq('id', approvalId);
 
-    if (decision === 'approved') {
-      await supabase.from('projects').update({ status: 'committee_review' }).eq('id', projectId);
+  if (decision === 'approved') {
+    const nextStatusMap: Record<string, string> = {
+      scoutmaster: 'committee_review',
+      district_chair: 'beneficiary_signoff',
+    };
+    const nextStatus = nextStatusMap[roleRequired];
+    if (nextStatus) {
+      await supabase.from('projects').update({ status: nextStatus }).eq('id', projectId);
     }
-
-    setApprovals((prev) => prev.filter((a) => a.id !== approvalId));
   }
+
+  setApprovals((prev) => prev.filter((a) => a.id !== approvalId));
+}
 
   return (
     <View style={styles.container}>
@@ -49,8 +61,8 @@ export default function ApprovalsScreen() {
             <Text style={styles.projectTitle}>{a.projects?.title}</Text>
             <Text style={styles.roleLabel}>Needs: {a.role_required}</Text>
             <View style={styles.buttonRow}>
-              <Button title="Approve" onPress={() => handleDecision(a.id, a.project_id, 'approved')} />
-              <Button title="Reject" color="red" onPress={() => handleDecision(a.id, a.project_id, 'rejected')} />
+              <Button title="Approve" onPress={() => handleDecision(a.id, a.project_id, a.role_required, 'approved')} />
+              <Button title="Reject" color="red" onPress={() => handleDecision(a.id, a.project_id, a.role_required, 'rejected')} />
             </View>
           </View>
         ))

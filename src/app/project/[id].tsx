@@ -67,6 +67,14 @@ export default function ProjectDetailScreen() {
       });
     }
 
+    if (nextStatus === 'district_review') {
+      await supabase.from('approvals').insert({
+        project_id: project.id,
+        role_required: 'district_chair',
+        status: 'pending',
+      });
+    }
+
     setProject({ ...project, status: nextStatus });
   }
 
